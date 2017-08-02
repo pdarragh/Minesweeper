@@ -22,6 +22,34 @@ data Game = Game { board    :: Board
                  , won      :: Bool
                  } deriving (Show, Eq)
 
+showGameBoard :: Board -> String
+showGameBoard b = unlines (map showGameRow b)
+
+showGameRow :: Row -> String
+showGameRow r = unwords (map showGameCell r)
+
+showGameCell :: Cell -> String
+showGameCell c = showBoardCell (boardCell c)
+
+showPlayerBoard :: Board -> String
+showPlayerBoard b = unlines (map showPlayerRow b)
+
+showPlayerRow :: Row -> String
+showPlayerRow r = unwords (map showPlayerCell r)
+
+showPlayerCell :: Cell -> String
+showPlayerCell (Chosen c) = showBoardCell c
+showPlayerCell (Unchosen _) = "#"
+
+boardCell :: Cell -> BoardCell
+boardCell (Chosen c) = c
+boardCell (Unchosen c) = c
+
+showBoardCell :: BoardCell -> String
+showBoardCell Empty = "_"
+showBoardCell (Flag n) = show n
+showBoardCell Mine = "*"
+
 makeSelection :: Int -> Int -> Game -> Either String Game
 makeSelection x y g
   | y < 0 || y > (length (board g)) - 1 = Left "invalid board row"
