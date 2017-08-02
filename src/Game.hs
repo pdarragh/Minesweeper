@@ -22,6 +22,32 @@ data Game = Game { board    :: Board
                  , won      :: Bool
                  } deriving (Show, Eq)
 
+makeSelection :: Int -> Int -> Game -> Either String Game
+makeSelection x y g
+  | y < 0 || y > (length (board g)) - 1 = Left "invalid board row"
+  | x < 0 || x > (length (head (board g))) - 1 = Left "invalid row cell"
+  | otherwise = case getCell x y (board g) of
+                    Chosen _ -> Left "cannot select already-selected position"
+                    Unchosen Mine -> Right (Game nb True False)
+                    Unchosen _ -> Right (g { board = nb })
+                  where nb = selectCell x y (board g)
+
+getCell :: Int -> Int -> Board -> Cell
+getCell x y b = (b !! y) !! x
+
+selectCell :: Int -> Int -> Board -> Board
+selectCell x y b = do
+    let (h, r : t) = splitAt y b
+     in h ++ (selectCell' x r) : t
+
+selectCell' :: Int -> Row -> Row
+selectCell' x r = do
+    let (h, oc : t) = splitAt x r
+        nc = case oc of
+               Chosen c' -> Chosen c'
+               Unchosen c' -> Chosen c'
+     in h ++ nc : t where
+
 createGame :: MonadRandom m => Int -> Int -> Int -> m Game
 createGame x y m = do
     ms <- minePositions x y m
