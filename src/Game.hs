@@ -52,6 +52,7 @@ showBoardCell Mine = "*"
 
 makeSelection :: Int -> Int -> Game -> Either String Game
 makeSelection x y g
+  | finished g = Left "cannot make board selection in completed game"
   | y < 0 || y > (length (board g)) - 1 = Left "invalid board row"
   | x < 0 || x > (length (head (board g))) - 1 = Left "invalid row cell"
   | otherwise = case getCell x y (board g) of
