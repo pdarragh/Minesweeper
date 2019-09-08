@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiWayIf #-}
 
 module Game
@@ -6,6 +7,7 @@ module Game
 where
 
 import           Data.List
+import           Data.List.Split
 import           Control.Monad.Random
 import           System.Random.Shuffle
 
@@ -23,9 +25,10 @@ type MineCount = Int
 {-@ type Size = { v : Int | 0 < v } @-}
 type Size = Int
 
-data CellType
+data CellFill
     = Mine
     | Proximity MineCount
+    deriving (Show, Eq)
 
 -- getRandomCellValue :: MonadRandom m => m CellValue
 -- getRandomCellValue = getRandomR (0, 9)
@@ -61,15 +64,25 @@ data CellState
     | Revealed
     deriving (Show, Eq)
 
-data Cell = Cell { getFill  :: CellType
-                 , getState :: CellState }
+data Cell = Cell { fill  :: CellFill
+                 , state :: CellState }
+                 deriving (Show, Eq)
+
+data Perspective = Player | Computer
+
+showCell :: Cell -> String
+showCell = showCellWithPerspective Player
+
+showCellWithPerspective :: Perspective -> Cell -> String
+showCellWithPerspective Player   Cell {..} = "player"
+showCellWithPerspective Computer Cell {..} = "computer"
 
 mkMineCell :: Cell
-mkMineCell = Cell { getFill = Mine, getState = Hidden }
+mkMineCell = Cell { fill = Mine, state = Hidden }
 
 {-@ mkProxCell :: MineCount -> Cell @-}
 mkProxCell :: MineCount -> Cell
-mkProxCell c = Cell { getFill = Proximity c, getState = Hidden }
+mkProxCell c = Cell { fill = Proximity c, state = Hidden }
 
 {-@ mkMaybeCell :: [Coord] -> Coord -> Maybe Cell @-}
 mkMaybeCell :: [Coord] -> Coord -> Maybe Cell
@@ -80,7 +93,7 @@ mkMaybeCell (c : cs) coord = if
 
 {-@ groupN :: w : Size -> h : Size -> { xs : [a] | llen xs == w * h } -> [[a]] @-}
 groupN :: Int -> Int -> [a] -> [[a]]
-groupN w h xs = [[]]
+groupN w _ = chunksOf w
 
 -- mkBoardFromList :: Size -> [a] -> [[a]]
 -- mkBoardFromList w xs =

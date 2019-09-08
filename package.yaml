@@ -34,6 +34,7 @@ tests:
 copyright: 2019 Pierce Darragh
 maintainer: pierce.darragh@gmail.com
 dependencies:
+- split
 - random-shuffle
 - MonadRandom
 - base >= 4.7 && < 5
