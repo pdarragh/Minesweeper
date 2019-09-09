@@ -28,7 +28,11 @@ type Size = Int
 data CellFill
     = Mine
     | Proximity MineCount
-    deriving (Show, Eq)
+    deriving (Eq)
+
+instance Show CellFill where
+    show Mine          = "*"
+    show (Proximity c) = if c == 0 then " " else show c
 
 -- getRandomCellValue :: MonadRandom m => m CellValue
 -- getRandomCellValue = getRandomR (0, 9)
@@ -46,6 +50,9 @@ generateCoords w h = [ (x, y) | x <- [0 .. w], y <- [0 .. h] ]
 chooseMines :: MonadRandom m => Size -> [Coord] -> m [Coord]
 chooseMines n coords = sort . take n <$> shuffleM coords
 
+class PerspShow a where
+    perspShow :: Perspective -> a -> String
+
 {-
 ALGORITHM FOR BUILDING BOARD
 
@@ -59,30 +66,34 @@ coords :: [(Int, Int)] <- sorted list of all coordinates
 -}
 
 data CellState
-    = Hidden
-    | Flagged
-    | Revealed
-    deriving (Show, Eq)
+    = Undisturbed   -- no interaction
+    | Flagged       -- player flag
+    | Revealed      -- revealed mine or number
+    deriving (Eq)
 
 data Cell = Cell { fill  :: CellFill
                  , state :: CellState }
-                 deriving (Show, Eq)
+                 deriving (Eq)
 
 data Perspective = Player | Computer
 
-showCell :: Cell -> String
-showCell = showCellWithPerspective Player
+instance PerspShow Cell where
+    perspShow persp Cell {..} = case state of
+        Undisturbed -> case persp of
+            Player   -> "#"
+            Computer -> "c"
+        Flagged  -> "^"
+        Revealed -> show fill
 
-showCellWithPerspective :: Perspective -> Cell -> String
-showCellWithPerspective Player   Cell {..} = "player"
-showCellWithPerspective Computer Cell {..} = "computer"
+instance Show Cell where
+    show = perspShow Player
 
 mkMineCell :: Cell
-mkMineCell = Cell { fill = Mine, state = Hidden }
+mkMineCell = Cell { fill = Mine, state = Undisturbed }
 
 {-@ mkProxCell :: MineCount -> Cell @-}
 mkProxCell :: MineCount -> Cell
-mkProxCell c = Cell { fill = Proximity c, state = Hidden }
+mkProxCell c = Cell { fill = Proximity c, state = Undisturbed }
 
 {-@ mkMaybeCell :: [Coord] -> Coord -> Maybe Cell @-}
 mkMaybeCell :: [Coord] -> Coord -> Maybe Cell
