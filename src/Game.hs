@@ -3,6 +3,8 @@
 
 module Game
     ( makeBoard
+    , perspShow
+    , Perspective(..)
     )
 where
 
@@ -81,12 +83,22 @@ instance PerspShow Cell where
     perspShow persp Cell {..} = case state of
         Undisturbed -> case persp of
             Player   -> "#"
-            Computer -> "c"
+            Computer -> show fill
         Flagged  -> "^"
         Revealed -> show fill
 
 instance Show Cell where
     show = perspShow Player
+
+type Row = [Cell]
+
+instance PerspShow Row where
+    perspShow persp = concatMap (perspShow persp)
+
+type Board = [Row]
+
+instance PerspShow Board where
+    perspShow persp rows = unlines (map (perspShow persp) rows)
 
 mkMineCell :: Cell
 mkMineCell = Cell { fill = Mine, state = Undisturbed }
