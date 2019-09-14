@@ -1,6 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 module Game
     ( makeBoard
@@ -14,11 +13,13 @@ import           Data.List.Split
 import           Control.Monad.Random
 import           System.Random.Shuffle
 
+-- Introduce a measure for liquid type constraints.
 {-@ measure llen @-}
 llen :: [a] -> Int
 llen []       = 0
 llen (x : xs) = 1 + llen xs
 
+-- Coordinates, used in mine generation and player interaction.
 -- {-@ type Coord = { p : (Int, Int) | fst p >= 0 && snd p >= 0 } @-}
 type Coord = (Int, Int)
 
@@ -28,6 +29,8 @@ type MineCount = Int
 {-@ type Size = { v : Int | 0 < v } @-}
 type Size = Int
 
+-- What the cell contains (either a mine or a count of how many mines are
+-- nearby).
 data CellFill
     = Mine
     | Proximity MineCount
@@ -37,48 +40,29 @@ instance Show CellFill where
     show Mine          = "*"
     show (Proximity c) = if c == 0 then " " else show c
 
--- getRandomCellValue :: MonadRandom m => m CellValue
--- getRandomCellValue = getRandomR (0, 9)
-
--- newCell :: MonadRandom m => m Cell
--- newCell = do
---     value <- getRandomCellValue
---     return Cell { getValue = value, getState = Hidden }
-
--- {-@ generateCoords :: w : Size -> h : Size -> { cs : [Coord] | llen cs == (w * h) } @-}
-generateCoords :: Size -> Size -> [Coord]
-generateCoords w h = [ (x, y) | x <- [0 .. w], y <- [0 .. h] ]
-
-{-@ chooseMines :: MonadRandom m => Size -> [Coord] -> m [Coord] @-}
-chooseMines :: MonadRandom m => Size -> [Coord] -> m [Coord]
-chooseMines n coords = sort . take n <$> shuffleM coords
-
-class PerspShow a where
-    perspShow :: Perspective -> a -> String
-
-{-
-ALGORITHM FOR BUILDING BOARD
-
-mines  :: [(Int, Int)] <- sorted list of mine locations
-coords :: [(Int, Int)] <- sorted list of all coordinates
-
-1. select mines from coordinates
-2. make board with optional mines
-3. make new board with mines and real proximities
-
--}
-
+-- The player's interaction with the cell.
 data CellState
     = Undisturbed   -- no interaction
     | Flagged       -- player flag
     | Revealed      -- revealed mine or number
     deriving (Eq)
 
+-- A cell, which combines a fill and a state.
 data Cell = Cell { fill  :: CellFill
                  , state :: CellState }
                  deriving (Eq)
 
+newtype Row = Row [Cell]     -- A row of cells on the board.
+newtype Board = Board [Row]  -- A collection of rows.
+
+-- Whether we're looking at this data as the player (potentially censored) or
+-- as the computer (full access).
 data Perspective = Player | Computer
+
+-- A class like Show, except which takes a Perspective as argument.
+-- This is used for printing cells.
+class PerspShow a where
+    perspShow :: Perspective -> a -> String
 
 instance PerspShow Cell where
     perspShow persp Cell {..} = case state of
@@ -88,18 +72,29 @@ instance PerspShow Cell where
         Flagged  -> "^"
         Revealed -> show fill
 
+instance PerspShow Row where
+    perspShow persp (Row cs) = concatMap (perspShow persp) cs
+
+instance PerspShow Board where
+    perspShow persp (Board rs) = unlines (map (perspShow persp) rs)
+
+-- Regular show assumes we're showing to the player.
 instance Show Cell where
     show = perspShow Player
 
-type Row = [Cell]
+instance Show Row where
+    show = perspShow Player
 
-instance PerspShow Row where
-    perspShow persp = concatMap (perspShow persp)
+instance Show Board where
+    show = perspShow Player
 
-type Board = [Row]
+-- {-@ generateCoords :: w : Size -> h : Size -> { cs : [Coord] | llen cs == (w * h) } @-}
+generateCoords :: Size -> Size -> [Coord]
+generateCoords w h = [ (x, y) | x <- [0 .. w], y <- [0 .. h] ]
 
-instance PerspShow Board where
-    perspShow persp rows = unlines (map (perspShow persp) rows)
+{-@ chooseMines :: MonadRandom m => Size -> [Coord] -> m [Coord] @-}
+chooseMines :: MonadRandom m => Size -> [Coord] -> m [Coord]
+chooseMines n coords = sort . take n <$> shuffleM coords
 
 mkMineCell :: Cell
 mkMineCell = Cell { fill = Mine, state = Undisturbed }
@@ -118,13 +113,6 @@ mkMaybeCell (c : cs) coord = if
 {-@ groupN :: w : Size -> h : Size -> { xs : [a] | llen xs == w * h } -> [[a]] @-}
 groupN :: Int -> Int -> [a] -> [[a]]
 groupN w _ = chunksOf w
-
--- mkBoardFromList :: Size -> [a] -> [[a]]
--- mkBoardFromList w xs =
-
--- mkBoardFromList' :: Size -> [a] -> [[a]] -> [[a]]
--- mkBoardFromList' _ [] xss = xss
--- mkBoardFromList' w xs xss = (take w xs) : xss
 
 {-@ mkMineBoard :: Size -> Size -> [Coord] -> [Maybe Cell] @-}
 mkMineBoard :: Size -> Size -> [Coord] -> [Maybe Cell]
